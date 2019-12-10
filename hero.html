@@ -1,0 +1,116 @@
+<html>
+<head>
+    <title>Island</title>
+    <style>
+    body { margin: 0; }
+    canvas { width: 100%; height: 100% }
+</style>
+</head>
+<body>
+    <script src="js/perlin.js"></script>
+    <script src="js/three.min.js"></script>
+    <script src="js/controls/OrbitControls.js"></script>
+    <script src="js/GLTFLoader.js"></script>
+    <script>
+
+    var clock = new THREE.Clock();
+
+    var scene = new THREE.Scene();
+    scene.background = new THREE.Color( 0xbfd1e5 );
+
+    var ambientLight = new THREE.AmbientLight( 0xcccccc );
+    scene.add( ambientLight );
+    var directionalLight = new THREE.DirectionalLight( 0xffffff, 0.3 );
+    directionalLight.castShadow = true;
+
+    directionalLight.shadow.mapSize.width = 1024;  // default
+    directionalLight.shadow.mapSize.height = 1024; // default
+
+    directionalLight.shadow.camera.near = -100 // default
+    directionalLight.shadow.camera.far = 100 // default
+    directionalLight.shadow.camera.top = -100 // default
+    directionalLight.shadow.camera.right = 100 // default
+    directionalLight.shadow.camera.left = -100 // default
+    directionalLight.shadow.camera.bottom = 100 // default
+
+    directionalLight.position.set( 1, 1, 5 ).normalize();
+    scene.add( directionalLight );
+
+    var camera = new THREE.PerspectiveCamera( 60, window.innerWidth/window.innerHeight, 0.1, 1000 );
+    var renderer = new THREE.WebGLRenderer();
+    renderer.shadowMap.enabled = true;
+    renderer.setSize( window.innerWidth, window.innerHeight );
+    document.body.appendChild( renderer.domElement );
+
+    var waterGeo = new THREE.PlaneGeometry(10,10,20,20);
+    waterGeo.computeFlatVertexNormals()
+    const waterPlane = new THREE.Mesh(waterGeo,
+        new THREE.MeshLambertMaterial({
+            color: new THREE.Color("#eeeeee"),
+            wireframe: true,
+            flatShading:true,
+        })
+    )
+
+    scene.add(waterPlane)
+
+
+
+    scene.rotateX( - Math.PI / 2 );
+
+    var controls = new THREE.OrbitControls( camera, renderer.domElement);
+    controls.enableKeys = true;
+    controls.enablePan = true;
+    controls.enableZoom = true;
+    // controls.maxPolarAngle = (Math.PI/2)-0.2;
+    camera.position.set( 1,1.8,1.6 );
+    controls.target.set(-0.4435815954512271, 0, -1.6300497749740621)
+    var animate = function () {
+        var delta = clock.getDelta();
+        requestAnimationFrame( animate );
+        controls.update();
+        mixer.update(delta);
+        renderer.render( scene, camera );
+    }
+
+    var animations;
+    var heroMesh;
+    var runner;
+    var mixer;
+
+    var loader = new THREE.GLTFLoader();
+    loader.load(
+        "models/hero.glb",
+        function ( gltf ) {
+            console.log(gltf);
+            heroMesh = gltf.scene.children[1];
+            console.log(heroMesh);
+            mixer = new THREE.AnimationMixer(heroMesh);
+            animations = gltf.animations;
+            heroMesh.scale.set(0.25,0.25,0.25);
+            heroMesh.position.z = -0.25;
+            heroMesh.traverse(o => {
+              if (o.isMesh) {
+                o.castShadow = true;
+              }
+            });
+
+
+            var runAnim = THREE.AnimationClip.findByName(animations, "Walk");
+            runner = mixer.clipAction(runAnim);
+            runner.play();
+
+            scene.add(heroMesh);
+
+            animate();
+        }
+    );
+
+
+
+
+
+
+    </script>
+</body>
+</html>
