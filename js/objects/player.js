@@ -3,6 +3,18 @@
     var C_ARM = new THREE.Color(0x3366ff);
     var C_HEAD = new THREE.Color(0xFFE0BD);
 
+    var PLAYER_MATERIAL =new THREE.MeshLambertMaterial( {color: 0xff9933, flatShading:true} )
+
+    var FORWARD_OFFSET = -Math.PI/2;
+    var Z_OFFSET = 0.6;
+    var ANIMATION_SCALE = 2;
+    var WALK_SPEED = 0.8 * ANIMATION_SCALE;
+
+    var STATES = {
+        IDLE: 0,
+        WALKING: 1
+    }
+
     class PlayerGeometry extends THREE.Geometry {
         constructor() {
             super();
@@ -42,10 +54,67 @@
         }
     }
     class Player extends THREE.Object3D {
-        constructor(map) {
+        constructor(map, done) {
             super();
-            this.mesh = new ISLAND.objects.BaseMesh(new PlayerGeometry());
-            this.add(this.mesh)
+            var self = this;
+            this.currentAction = null;
+            this.state = STATES.IDLE;
+            this.lastItch = 1 + Math.random()*5;
+
+            // this.mesh = new ISLAND.objects.BaseMesh(new PlayerGeometry());
+            // this.add(this.mesh)
+            self.actions = {};
+
+            var loader = new THREE.GLTFLoader();
+            loader.load(
+                "models/hero.glb",
+                function ( gltf ) {
+                    self.mesh = gltf.scene.children[0];
+
+
+                    self.mesh.scale.set(0.25,0.25,0.25);
+                    self.mesh.position.z = Z_OFFSET;
+                    self.mesh.traverse(o => {
+                        if (o.isMesh) {
+                            o.castShadow = true;
+                            if (o.material) {
+                                o.material.flatShading = true;
+                                o.material.emissiveIntensity = 0.2;
+                                o.material.emissive.setHex( 0xffffff );
+                                // o.material = new THREE.MeshLambertMaterial( {color: o.material.color, flatShading:true, skinning: true}  )
+                            }
+                        }
+                    });
+                    self.add(self.mesh);
+                    // self.add(new ISLAND.objects.BaseMesh(new PlayerGeometry()))
+
+                    self.mixer = new THREE.AnimationMixer(self.mesh)
+                    self.mixer.timeScale = ANIMATION_SCALE;
+                    self.animations = gltf.animations;
+                    self.actions.idle = self.mixer.clipAction(THREE.AnimationClip.findByName(self.animations, "Idle"));
+                    self.actions.walk = self.mixer.clipAction(THREE.AnimationClip.findByName(self.animations, "Walk"));
+                    self.actions.headScratch = self.mixer.clipAction(THREE.AnimationClip.findByName(self.animations, "HeadScratch"));
+                    self.actions.headScratch.setLoop( THREE.LoopOnce );
+                    self.actions.headScratch.clampWhenFinished = true;
+
+                    self.currentAction = self.actions.idle;
+                    self.currentAction.play();
+                    self.state = STATES.IDLE;
+                    done();
+                    // console.log(gltf.scene.children[1]);
+                    // console.log(gltf.scene.children[1].isMesh);
+                    // gltf.scene.children[1].position.z =14;
+                    // gltf.scene.traverse( function ( child ) {
+                    //
+                    //     // if (child.isMesh) child.material = material;
+                    // });
+                    //
+                    //
+                    // camera.lookAt(gltf.scene.children[0].position);
+                },
+            );
+
+
 
 
             this.map = map;
@@ -72,8 +141,8 @@
         }
 
         updateHeading() {
-            this.dx = Math.cos(this.dir);
-            this.dy = Math.sin(this.dir);
+            this.dx = Math.cos(this.dir+FORWARD_OFFSET);
+            this.dy = Math.sin(this.dir+FORWARD_OFFSET);
         }
         jump() {
             if (this.deltaZ === 0) {
@@ -81,7 +150,9 @@
             }
         }
         update(delta) {
-            var moveSpeed = 4*delta;
+
+            this.mixer.update(delta);
+            var moveSpeed = WALK_SPEED*delta;
             var moved = false;
             var newX = this.position.x;
             var newY = this.position.y;
@@ -107,6 +178,14 @@
 
             if (moved || this.deltaZ != 0) {
                 // this.mesh.position.z = -0.25;
+                if (this.state !== STATES.WALKING) {
+                    this.actions.walk.play();
+                    if (this.currentAction) {
+                        this.currentAction.stop();
+                    }
+                    this.currentAction = this.actions.walk;
+                    this.state = STATES.WALKING;
+                }
 
                 var landHeight = Math.max(-0.8,this.map.getHeightAt(newX,newY));
                 var heightAboveLand = this.position.z - landHeight;
@@ -128,10 +207,10 @@
                 if (!cell||!cell.object || (dr > objRadius || cell.object.height < 0.5)) {
                     if (dr <= objRadius && cell.object && cell.object.height) {
                         if (heightAboveLand < cell.object.height) {
-                            this.mesh.position.z = cell.object.height-heightAboveLand;
+                            this.mesh.position.z = cell.object.height-heightAboveLand + Z_OFFSET;
                         }
                     } else {
-                        this.mesh.position.z = 0;
+                        this.mesh.position.z = Z_OFFSET;
                     }
                     this.position.x = newX;
                     this.position.y = newY;
@@ -149,6 +228,21 @@
                 this.position.z = newZ;
                 // }
                 // this.tracker.position.set(0,0,0);
+            } else {
+                this.lastItch -= delta;
+                if (this.state !== STATES.IDLE) {
+                    this.lastItch = 1 + Math.random()*5;
+                    this.actions.idle.play();
+                    this.currentAction.stop();
+                    this.currentAction = this.actions.idle;
+                    this.state = STATES.IDLE;
+                } else if (this.lastItch < 0) {
+                    this.lastItch = 1 + Math.random()*5;
+                    this.actions.headScratch.reset().play();
+                    this.actions.idle.stop();
+                    this.currentAction = this.actions.headScratch;
+                }
+
             }
         }
     }

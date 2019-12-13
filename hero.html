@@ -83,24 +83,28 @@
         "models/hero.glb",
         function ( gltf ) {
             console.log(gltf);
-            heroMesh = gltf.scene.children[1];
+            heroMesh = gltf.scene.children[0];
             console.log(heroMesh);
             mixer = new THREE.AnimationMixer(heroMesh);
             animations = gltf.animations;
             heroMesh.scale.set(0.25,0.25,0.25);
-            heroMesh.position.z = -0.25;
+            // heroMesh.position.z = -0.25;
             heroMesh.traverse(o => {
-              if (o.isMesh) {
-                o.castShadow = true;
-              }
+                if (o.isMesh) {
+                    o.castShadow = true;
+                }
+                if (o.material) {
+                    o.material = new THREE.MeshLambertMaterial( {color: o.material.color, flatShading:true, skinning: true}  )
+                    console.log(o.material)
+                }
             });
+scene.add(heroMesh);
 
-
-            var runAnim = THREE.AnimationClip.findByName(animations, "Walk");
+            var runAnim = THREE.AnimationClip.findByName(animations, "HeadScratch");
+            console.log(runAnim);
             runner = mixer.clipAction(runAnim);
             runner.play();
 
-            scene.add(heroMesh);
 
             animate();
         }

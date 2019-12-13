@@ -95,11 +95,10 @@ controls.maxPolarAngle = (Math.PI/2)-0.2;
 if (!followPlayer) {
     camera.position.set( -36, 85, 63 );
 }
-camera.position.set( -36, 85, 63 );
 
-var player = new ISLAND.Player(map);
-scene.add(player);
-
+// var player = new ISLAND.Player(map);
+// scene.add(player);
+// console.log(followPlayer);
 
 
 var target = new THREE.Vector3();
@@ -116,7 +115,7 @@ var animate = function () {
         //
         controls.update();
         direction.subVectors( camera.position, controls.target );
-        direction.normalize().multiplyScalar( 12 );
+        direction.normalize().multiplyScalar( 10 );
         camera.position.copy( direction.add( controls.target ) );
         var camHeight = (camera.position.y - map.getHeightAt(camera.position.x, -camera.position.z));
         if (camHeight < 0.1) {
@@ -127,7 +126,6 @@ var animate = function () {
         controls.update();
     }
     player.update(delta)
-
     renderer.render( scene, camera );
 
 
@@ -140,10 +138,10 @@ var animate = function () {
 
 };
 
-
-
-
-animate();
+var player = new ISLAND.Player(map, function() {
+    scene.add(player);
+    animate();
+});
 
 
 function onDocumentKeyDown( event ) {
