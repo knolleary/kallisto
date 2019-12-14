@@ -1,6 +1,8 @@
 var hud = document.getElementById("hud");
 
 
+var CAMERA_DISTANCE_TO_PLAYER = 7;
+
 var clock = new THREE.Clock();
 
 var scene = new THREE.Scene();
@@ -115,7 +117,7 @@ var animate = function () {
         //
         controls.update();
         direction.subVectors( camera.position, controls.target );
-        direction.normalize().multiplyScalar( 10 );
+        direction.normalize().multiplyScalar( CAMERA_DISTANCE_TO_PLAYER );
         camera.position.copy( direction.add( controls.target ) );
         var camHeight = (camera.position.y - map.getHeightAt(camera.position.x, -camera.position.z));
         if (camHeight < 0.1) {

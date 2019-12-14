@@ -6,7 +6,7 @@
     var PLAYER_MATERIAL =new THREE.MeshLambertMaterial( {color: 0xff9933, flatShading:true} )
 
     var FORWARD_OFFSET = -Math.PI/2;
-    var Z_OFFSET = 0.6;
+    var Z_OFFSET = 0.05;
     var ANIMATION_SCALE = 2;
     var WALK_SPEED = 0.8 * ANIMATION_SCALE;
 
@@ -91,8 +91,10 @@
                     self.mixer = new THREE.AnimationMixer(self.mesh)
                     self.mixer.timeScale = ANIMATION_SCALE;
                     self.animations = gltf.animations;
+                    console.log(self.animations.map(p=>p.name));
                     self.actions.idle = self.mixer.clipAction(THREE.AnimationClip.findByName(self.animations, "Idle"));
                     self.actions.walk = self.mixer.clipAction(THREE.AnimationClip.findByName(self.animations, "Walk"));
+                    self.actions.walkBack = self.mixer.clipAction(THREE.AnimationClip.findByName(self.animations, "WalkBack"));
                     self.actions.headScratch = self.mixer.clipAction(THREE.AnimationClip.findByName(self.animations, "HeadScratch"));
                     self.actions.headScratch.setLoop( THREE.LoopOnce );
                     self.actions.headScratch.clampWhenFinished = true;
@@ -162,8 +164,8 @@
                 newY = this.position.y + this.dy*moveSpeed;
                 moved = true;
             } else if (this.moveBack) {
-                newX = this.position.x - this.dx*moveSpeed*0.8;
-                newY = this.position.y - this.dy*moveSpeed*0.8;
+                newX = this.position.x - this.dx*moveSpeed;
+                newY = this.position.y - this.dy*moveSpeed;
                 moved = true;
             }
             if (this.turnLeft) {
@@ -179,11 +181,15 @@
             if (moved || this.deltaZ != 0) {
                 // this.mesh.position.z = -0.25;
                 if (this.state !== STATES.WALKING) {
-                    this.actions.walk.play();
+                    var walkAction = this.actions.walk;
+                    if (this.moveBack) {
+                        walkAction = this.actions.walkBack;
+                    }
+                    walkAction.play();
                     if (this.currentAction) {
                         this.currentAction.stop();
                     }
-                    this.currentAction = this.actions.walk;
+                    this.currentAction = walkAction;
                     this.state = STATES.WALKING;
                 }
 
