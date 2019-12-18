@@ -1,17 +1,31 @@
 <html>
 <head>
-    <title>Island</title>
+    <title>Model Viewer</title>
     <style>
     body { margin: 0; }
     canvas { width: 100%; height: 100% }
+    #hud {
+        position: absolute;
+        padding: 10px;
+        top: 10px; left: 10px;
+        width: 300px;
+        height: 400px;
+        background: white;
+    }
 </style>
 </head>
 <body>
+    <div id="hud"></div>
     <script src="js/perlin.js"></script>
     <script src="js/three.min.js"></script>
     <script src="js/controls/OrbitControls.js"></script>
     <script src="js/GLTFLoader.js"></script>
     <script>
+
+    var hud = document.getElementById("hud");
+
+    var Z_OFFSET = 0.05;
+    var ANIMATION_SCALE = 1;
 
     var clock = new THREE.Clock();
 
@@ -47,7 +61,7 @@
     const waterPlane = new THREE.Mesh(waterGeo,
         new THREE.MeshLambertMaterial({
             color: new THREE.Color("#eeeeee"),
-            wireframe: true,
+            // wireframe: true,
             flatShading:true,
         })
     )
@@ -63,8 +77,8 @@
     controls.enablePan = true;
     controls.enableZoom = true;
     // controls.maxPolarAngle = (Math.PI/2)-0.2;
-    camera.position.set( 1,1.8,1.6 );
-    controls.target.set(-0.4435815954512271, 0, -1.6300497749740621)
+    camera.position.set( 0.5,1,2 );
+    controls.target.set(0,0.5,0)
     var animate = function () {
         var delta = clock.getDelta();
         requestAnimationFrame( animate );
@@ -73,10 +87,11 @@
         renderer.render( scene, camera );
     }
 
-    var animations;
+    var animations = {};
     var heroMesh;
     var runner;
     var mixer;
+    var activeAction = null;
 
     var loader = new THREE.GLTFLoader();
     loader.load(
@@ -84,36 +99,49 @@
         function ( gltf ) {
             console.log(gltf);
             heroMesh = gltf.scene.children[0];
-            console.log(heroMesh);
             mixer = new THREE.AnimationMixer(heroMesh);
-            animations = gltf.animations;
+            mixer.timeScale = ANIMATION_SCALE;
             heroMesh.scale.set(0.25,0.25,0.25);
-            // heroMesh.position.z = -0.25;
+            heroMesh.position.z = Z_OFFSET;
+            heroMesh.position.x = 0;
+            heroMesh.position.y = 0;
             heroMesh.traverse(o => {
                 if (o.isMesh) {
                     o.castShadow = true;
                 }
                 if (o.material) {
-                    o.material = new THREE.MeshLambertMaterial( {color: o.material.color, flatShading:true, skinning: true}  )
-                    console.log(o.material)
+                    o.material.flatShading = true;
+                    o.material.emissiveIntensity = 0.2;
+                    o.material.emissive.setHex( 0xffffff );
                 }
             });
-scene.add(heroMesh);
+            scene.add(heroMesh);
 
-            var runAnim = THREE.AnimationClip.findByName(animations, "HeadScratch");
-            console.log(runAnim);
-            runner = mixer.clipAction(runAnim);
-            runner.play();
+            gltf.animations.forEach(function(anim) {
+                animations[anim.name] = mixer.clipAction(THREE.AnimationClip.findByName(gltf.animations, anim.name));
+                var row = document.createElement("P");
+                hud.appendChild(row);
 
+                var btn = document.createElement("BUTTON");
+                btn.innerHTML = anim.name;
+                btn.onclick = function() {
+                    playAction(anim.name);
+                }
+                row.appendChild(btn);
+
+            });
 
             animate();
         }
     );
 
-
-
-
-
+    function playAction(id) {
+        if (activeAction) {
+            activeAction.stop();
+        }
+        animations[id].play();
+        activeAction = animations[id];
+    }
 
     </script>
 </body>

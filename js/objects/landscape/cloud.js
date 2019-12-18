@@ -1,14 +1,11 @@
-(function() {
+import {BaseObject} from "../baseObject.js"
 
-class Cloud extends ISLAND.objects.BaseMesh {
+export class Cloud extends BaseObject {
     constructor() {
-        super(
+        super("cloud");
+        this.add(new THREE.Mesh(
             new THREE.IcosahedronGeometry( 1+Math.random()*3 ),
             new THREE.MeshLambertMaterial( {color: 0xffffff, flatShading:true} )
-        );
+        ));
     }
 }
-
-ISLAND.objects.cloud = Cloud;
-
-})();

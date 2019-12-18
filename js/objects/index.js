@@ -1,0 +1,5 @@
+export { Chicken } from "./creatures/chicken.js"
+export { Cloud } from "./landscape/cloud.js"
+export { River } from "./landscape/river.js"
+export { Rock } from "./landscape/rock.js"
+export {Tree1, Tree2} from "./landscape/tree.js"
