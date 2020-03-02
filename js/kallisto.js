@@ -3,7 +3,6 @@ import {Player} from "./player.js"
 import * as Objects from "./objects/index.js"
 import {onReady} from "./utils/loader.js"
 
-
 export default {
     Island: {
         generate: function(scene,opts) {

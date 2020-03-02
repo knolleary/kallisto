@@ -6,14 +6,14 @@ class SimpleTreeGeometry extends THREE.Geometry {
     constructor() {
         super();
         this.type = "Tree1"
-        var trunk = new THREE.ConeGeometry( 0.2, 1.8, 5 );
+        var trunk = new THREE.ConeGeometry( 0.2, 2.3, 5 );
         trunk.rotateX(  Math.PI / 2 );
         trunk.translate(0,0,-0.2);
         trunk.faces.forEach(function(f) {
             f.color = TRUNK;
         })
         var leaves = new THREE.IcosahedronGeometry( 0.8 );
-        leaves.translate(0,0,0.8);
+        leaves.translate(0,0,1.1);
         leaves.faces.forEach(function(f) {
             f.color = LEAVES;
         })
@@ -21,7 +21,7 @@ class SimpleTreeGeometry extends THREE.Geometry {
         this.merge(trunk);
         this.merge(leaves);
         this.mergeVertices(); // optional
-        this.translate(0,0,0.8);
+        this.translate(0,0,1.3);
     }
 }
 
@@ -58,27 +58,56 @@ class AnotherTreeGeometry extends THREE.Geometry {
 export class Tree1 extends BaseObject {
     constructor(cell) {
         super("tree1");
-        this.add(new THREE.Mesh(
+
+        var t = new THREE.Mesh(
             new SimpleTreeGeometry(),
             new THREE.MeshLambertMaterial( {vertexColors: THREE.VertexColors, flatShading:true}  )
-        ))
+        )
+        t.castShadow = true;
+        this.add(t)
         this.setCell(cell);
 
         this.rotation.z = Math.random()*2*Math.PI;
-        this.radius = 0.08;
-        this.height = 1;
+        this.radius = 0.2;
+        this.radiusSq = this.radius*this.radius;
+        this.height = 2;
+    }
+    getHeightAt(x,y) {
+        var dx = this.cell.x - x;
+        var dy = this.cell.y - y;
+        var dd = dx*dx+dy*dy;
+        if (dd > this.radiusSq) {
+            return 0;
+        } else {
+            // console.log(dx,dy,dd,(this.radiusSq-dd)/this.radiusSq)
+            return this.height
+        }
     }
 }
 export class Tree2 extends BaseObject {
     constructor(cell) {
         super("tree2");
-        this.add(new THREE.Mesh(
+        var t = new THREE.Mesh(
             new AnotherTreeGeometry(),
             new THREE.MeshLambertMaterial( {vertexColors: THREE.VertexColors, flatShading:true}  )
-        ))
+        );
+        t.castShadow = true;
+        this.add(t);
         this.setCell(cell);
         this.rotation.z = Math.random()*2*Math.PI;
-        this.radius = 0.4;
-        this.height = 1;
+        this.radius = 0.6;
+        this.radiusSq = this.radius*this.radius;
+        this.height = 2;
+    }
+    getHeightAt(x,y) {
+        var dx = this.cell.x - x;
+        var dy = this.cell.y - y;
+        var dd = dx*dx+dy*dy;
+        if (dd > this.radiusSq) {
+            return 0;
+        } else {
+            // console.log(dx,dy,dd,(this.radiusSq-dd)/this.radiusSq)
+            return this.height
+        }
     }
 }

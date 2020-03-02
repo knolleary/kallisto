@@ -7,26 +7,37 @@
     #banner {
         background: white;
         position: absolute;
-        width: 400px;
+        width: 450px;
         padding: 10px;
+        text-align: left;
+    }
+    #hud {
+        background: white;
+        text-align: left;
+    }
+    #clock {
+        font-family: monospace;
+        border: 1px solid #666;
+        border-radius: 3px;
+        padding: 2px;
+        display: inline-block;
+        width: 50px;
         text-align: center;
     }
-	#hud {
-        display: none;
-		position: absolute;
-		top: 10px; left: 10px;
-		width: 300px;
-		height: 500px;
-		background: white;
-	}
 </style>
 </head>
 <body>
-    <div id="banner">W/A/S/D to move. Space to jump. Click/Drag to rotate view.</div>
-	<div id="hud"></div>
+    <div id="banner">
+        <div id="clock">00:00</div> W/A/S/D to move. Space to jump. Click/Drag to rotate view.
+    	<div id="hud"></div>
+    </div>
+    <div id="stats"></div>
     <script src="js/lib/perlin.js"></script>
     <script src="js/lib/three.min.js"></script>
+    <script src="js/lib/stats.js"></script>
     <script src="js/lib/OrbitControls.js"></script>
+    <script src="js/lib/SkeletonUtils.js"></script>
+    <script src="js/lib/BufferGeometryUtils.js"></script>
     <script src="js/lib/GLTFLoader.js"></script>
 
     <script type="module" src="js/app.js"></script>

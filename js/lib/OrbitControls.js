@@ -156,7 +156,6 @@ THREE.OrbitControls = function ( object, domElement, map ) {
 				rotateLeft( getAutoRotationAngle() );
 
 			}
-
 			if ( scope.enableDamping ) {
 
 				spherical.theta += sphericalDelta.theta * scope.dampingFactor;
@@ -771,7 +770,7 @@ THREE.OrbitControls = function ( object, domElement, map ) {
 
 					case THREE.MOUSE.ROTATE:
 
-						if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+						if ( event.ctrlKey || event.metaKey ) {
 
 							if ( scope.enablePan === false ) return;
 
@@ -793,7 +792,7 @@ THREE.OrbitControls = function ( object, domElement, map ) {
 
 					case THREE.MOUSE.PAN:
 
-						if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+						if ( event.ctrlKey || event.metaKey ) {
 
 							if ( scope.enableRotate === false ) return;
 

@@ -3,6 +3,8 @@
 
 import {BaseMesh,BaseObject} from "./objects/baseObject.js"
 import * as Objects from "./objects/index.js"
+import * as Status from "./utils/status.js"
+import * as Time from "./utils/time.js"
 
 
 var FLAT_LANDIA = false;
@@ -67,9 +69,11 @@ var mix = function(a, b, t) {
     return a * (1.0-t) + b * t;
 };
 
+
 export class Island extends THREE.Object3D {
     constructor(opts) {
         super();
+        Status.log("Creating new island");
         var self = this;
         this.options = Object.assign({},{
             width: 100,
@@ -91,11 +95,18 @@ export class Island extends THREE.Object3D {
         this.geometry.verticesNeedUpdate = true
 
 
+        var oceanCells = [];
+
+        var cellsPerRegionWidth = 3;
+        var regionsPerRow = (this.options.width-1)/cellsPerRegionWidth;
+
+        Status.log(" - generating terrain");
+
         for (var y = 0; y < this.options.height; y++) {
             for (var x = 0; x < this.options.width; x++) {
-
                 var nx = (x - this.midWidth) / this.midWidth;
                 var ny = (y - this.midHeight) / this.midHeight;
+
                 var distance = Math.max(Math.abs(nx), Math.abs(ny));
                 var n = fbm_noise(this.options.islandShape.amplitudes, nx, ny);
                 n = mix(n, 0.5, this.options.islandShape.round);
@@ -118,9 +129,6 @@ export class Island extends THREE.Object3D {
                 }
                 this.geometry.vertices.push(v);
                 this.vertices.push(v);
-                if (x%9 === 0 && y%9 === 0) {
-                    this.markVertex(v);
-                }
                 if (x > 0 && y > 0) {
                     var cell = {
                         i: this.cells.length,
@@ -142,11 +150,37 @@ export class Island extends THREE.Object3D {
                             y*this.options.height+x,       // c2
                             (y-1)*this.options.height+x    // c1
                         ),
-                        highlight: function(v) {
+                        highlight: function(v,col) {
                             if (v) {
-                                this.face0.color.set(HIGHLIGHT_COLOR);
-                                this.face1.color.set(HIGHLIGHT_COLOR);
+                                this.face0.color.set(col || HIGHLIGHT_COLOR);
+                                this.face1.color.set(col || HIGHLIGHT_COLOR);
                                 self.geometry.colorsNeedUpdate = true
+                            } else {
+                                this.face0.color.set(this.face0.baseColor);
+                                this.face1.color.set(this.face1.baseColor);
+                                self.geometry.colorsNeedUpdate = true
+                            }
+                        },
+                        getNeighbour(dx,dy) {
+                            var cellIndex = this.i+dx+(dy*(self.options.width-1));
+                            if (cellIndex >= 0 && cellIndex < self.cells.length) {
+                                return self.cells[cellIndex];
+                            }
+                        },
+                        eachNeighbour(callback) {
+                            var pos = 0;
+                            for (var x=-1;x<2;x++) {
+                                for (var y=-1;y<2;y++) {
+                                    if (x===0 && y===0) {
+                                        pos++;
+                                        continue
+                                    }
+                                    var cellIndex = this.i+x+(y*(self.options.width-1));
+                                    if (cellIndex >= 0 && cellIndex < self.cells.length) {
+                                        callback(self.cells[cellIndex],pos);
+                                    }
+                                    pos++;
+                                }
                             }
                         }
                     }
@@ -157,7 +191,7 @@ export class Island extends THREE.Object3D {
                         cell.z += v.z;
                         cell.h += v.h;
                         cell.minZ = Math.min(cell.minZ,v.z);
-                        cell.maxX = Math.max(cell.maxZ,v.z);
+                        cell.maxZ = Math.max(cell.maxZ,v.z);
                         return cell;
                     },cell);
                     cell.x /= 4;
@@ -211,25 +245,70 @@ export class Island extends THREE.Object3D {
                         }
                     }
                     if (cell.cliff) {
-                        cell.face0.color.set(CLIFF_COLOR)
-                        cell.face1.color.set(CLIFF_COLOR)
+                        cell.face0.baseColor = CLIFF_COLOR;
+                        cell.face1.baseColor = CLIFF_COLOR;
                     } else if (cell.minZ < 0) {
                         // Coastline and underwater
-                        cell.face0.color.set(SAND_COLOR)
-                        cell.face1.color.set(SAND_COLOR)
+                        cell.face0.baseColor = SAND_COLOR;
+                        cell.face1.baseColor = SAND_COLOR;
+                        cell.water = true;
+                        if (x === 1 ||  y === 1 || x === this.options.width-1 || y === this.options.height-1 ) {
+                            oceanCells.push(cell);
+                        }
+                        if (cell.maxZ > 0) {
+                            cell.beach = true;
+                        }
                     } else {
-                        cell.face0.color.set(LAND_PALETTE[Math.max(0, Math.floor(Math.abs(cell.minZ)+1)+Math.floor(Math.random()*2)-1 )])
-                        cell.face1.color.set(LAND_PALETTE[Math.max(0, Math.floor(Math.abs(cell.minZ)+1)+Math.floor(Math.random()*2)-1 )])
+                        cell.face0.baseColor = LAND_PALETTE[Math.max(0, Math.floor(Math.abs(cell.minZ)+1)+Math.floor(Math.random()*2)-1 )];
+                        cell.face1.baseColor = LAND_PALETTE[Math.max(0, Math.floor(Math.abs(cell.minZ)+1)+Math.floor(Math.random()*2)-1 )];
                     }
-
-
+                    cell.face0.color.set(cell.face0.baseColor);
+                    cell.face1.color.set(cell.face1.baseColor);
                     this.cells.push(cell);
                     this.geometry.faces.push(cell.face0);
                     this.geometry.faces.push(cell.face1);
+
+                    var rx = Math.floor(cell.i/(this.options.width-1));
+                    var ry = (cell.i%(this.options.width-1));
+
+                    if (x%cellsPerRegionWidth === 0 && y%cellsPerRegionWidth === 0) {
+                        var region = {
+                            i: this.regions.length,
+                            rx: this.regions.length%regionsPerRow,
+                            ry: Math.floor(this.regions.length/regionsPerRow),
+                            neighbours: [],
+                            cells: [],
+                            contains: new Set()
+                        }
+                        for (var cx=0;cx<cellsPerRegionWidth;cx++) {
+                            for (var cy=0;cy<cellsPerRegionWidth;cy++) {
+                                var cellIndex = cell.i-cx-(cy*(this.options.width-1));
+                                if (cellIndex > -1) {
+                                    region.cells.push(this.cells[cellIndex])
+                                    this.cells[cellIndex].region = region;
+                                }
+                            }
+                        }
+                        this.regions.push(region);
+                        // this.markVertex(v,null,((this.regions.length-1)%regionsPerRow)+","+Math.floor((this.regions.length-1)/regionsPerRow)) ;
+                    }
                 }
             }
         }
-        console.log(this.options.width,this.options.height,this.cells.length);
+        Status.log(" - flooding ocean");
+
+        while(oceanCells.length > 0) {
+            var cell = oceanCells.shift();
+            if (!cell.ocean) {
+                cell.ocean = true;
+                cell.eachNeighbour(function(c) {
+                    if (c.water && !c.ocean) {
+                        oceanCells.push(c);
+                    }
+                })
+            }
+        }
+
         this.geometry.computeFlatVertexNormals()
         this.mesh = new THREE.Mesh(this.geometry, new THREE.MeshLambertMaterial({
             // wireframe:true,
@@ -242,44 +321,48 @@ export class Island extends THREE.Object3D {
 
         this.add(this.mesh);
 
+        // this.BLOB_A = new BaseMesh(
+        //     new THREE.IcosahedronGeometry( 0.2 ),
+        //     new THREE.MeshLambertMaterial( {color: 0xff0000, flatShading:true} )
+        // );
+        // this.add(this.BLOB_A);
+        // this.BLOB_B = new BaseMesh(
+        //     new THREE.IcosahedronGeometry( 0.2 ),
+        //     new THREE.MeshLambertMaterial( {color: 0x00ff00, flatShading:true} )
+        // );
+        // this.add(this.BLOB_B);
+        //
+        // this.BLOBS = [];
+        // for (var i=0;i<4;i++) {
+        //     this.BLOBS[i] = new BaseMesh(
+        //         new THREE.IcosahedronGeometry( 0.1 ),
+        //         new THREE.MeshLambertMaterial( {color: 0x0000ff, flatShading:true} )
+        //     );
+        //     this.add(this.BLOBS[i]);
+        // }
+        //
+        // for (var i=4;i<8;i++) {
+        //     this.BLOBS[i] = new BaseMesh(
+        //         new THREE.IcosahedronGeometry( 0.1 ),
+        //         new THREE.MeshLambertMaterial( {color: 0xff00ff, flatShading:true} )
+        //     );
+        //     this.add(this.BLOBS[i]);
+        // }
+        Status.log("Creating new island - done");
 
-
-        this.BLOB_A = new BaseMesh(
-            new THREE.IcosahedronGeometry( 0.2 ),
-            new THREE.MeshLambertMaterial( {color: 0xff0000, flatShading:true} )
-        );
-        this.add(this.BLOB_A);
-        this.BLOB_B = new BaseMesh(
-            new THREE.IcosahedronGeometry( 0.2 ),
-            new THREE.MeshLambertMaterial( {color: 0x00ff00, flatShading:true} )
-        );
-        this.add(this.BLOB_B);
-
-        this.BLOBS = [];
-        for (var i=0;i<4;i++) {
-            this.BLOBS[i] = new BaseMesh(
-                new THREE.IcosahedronGeometry( 0.1 ),
-                new THREE.MeshLambertMaterial( {color: 0x0000ff, flatShading:true} )
-            );
-            this.add(this.BLOBS[i]);
-        }
-
-        for (var i=4;i<8;i++) {
-            this.BLOBS[i] = new BaseMesh(
-                new THREE.IcosahedronGeometry( 0.1 ),
-                new THREE.MeshLambertMaterial( {color: 0xff00ff, flatShading:true} )
-            );
-            this.add(this.BLOBS[i]);
-        }
     }
     populate() {
+        Status.log("Populating island");
         var self = this;
         this.rivers = [];
         var waterCells = [];
         this.trees = [];
         this.rocks = [];
         this.chickens = [];
+        this.grass = [];
+        this.ruins = 0;
         var riverId = 100;
+        Status.log(" - filling cells");
         this.cells.forEach(function(cell) {
             if (cell.cliff) {
                 return
@@ -290,16 +373,48 @@ export class Island extends THREE.Object3D {
                 waterCells.push(cell);
             }
 
-            if (!cell.water && cell.h > 2 && cell.h < 6  && Math.random()<0.05) {
+            if (self.ruins < 1 && !cell.object && cell.h > 7 && Math.random() < 0.05) {
+                var ruinsCells = [cell];
+                var candidateRuinsCells = new Set();
+
+                var maxZ = cell.z;
+                for (var i=0;i<Math.PI*2; i+= Math.PI/8) {
+                    for (var d = 3;d>0;d-- ){
+                        var cx = Math.round(d*Math.cos(i));
+                        var cy = Math.round(d*Math.sin(i));
+                        var cn = cell.getNeighbour(cx,cy);
+                        // if (cn) {
+                        //     if (!candidateRuinsCells.has(cn)) {
+                        //         if (cn.object) {
+                        //
+                        //         }
+                        if (cn && !cn.object) {
+                            if (!cn.ruin) {
+                                cn.ruin = true;
+                                cn.ruinWall = (d===3);
+                                ruinsCells.push(cn);
+                                maxZ = Math.max(maxZ,cn.z);
+                            }
+                        }
+                    }
+                }
+                self.ruins++;
+                ruinsCells.forEach(function(cn) {
+                    if (cn.object) { console.log("CLASH",cn.object.type)}
+                    cn.object = new Objects.Ruins(cn,maxZ+(cn.ruinWall?0.8:0.3));
+                    self.add(cn.object);
+                })
+            } else if (!cell.water && !cell.object && cell.h > 2 && cell.h < 6  && Math.random()<0.05) {
                 cell.object =  Math.random()<0.5?new Objects.Tree1(cell):new Objects.Tree2(cell);
                 self.trees.push(cell.object);
-            } else if (
+            } else if (!cell.object && (
                 (cell.h >=0 && cell.h < 1 && Math.random()<0.08) ||
-                (cell.h > 1 && Math.random()<0.02)
+                (cell.h > 1 && Math.random()< 0.02))
             ) {
                 cell.object = new Objects.Rock(cell);
                 self.rocks.push(cell.object);
-            } else if (cell.h > 8 && Math.random() < 0.04) {
+           } else if (self.chickens.length < 15 && cell.h > 2 && Math.abs(cell.x)<20 && Math.abs(cell.y) < 20  && Math.random() < 0.005) {
+               // } else if (self.chickens.length < 1 && cell.h > 2 && Math.abs(cell.x)<2 && Math.abs(cell.y) < 2  && Math.random() < 0.5) {
                 var chicken = new Objects.Chicken(self);
                 chicken.position.x = cell.x;
                 chicken.position.y = cell.y;
@@ -307,12 +422,14 @@ export class Island extends THREE.Object3D {
                 self.chickens.push(chicken);
 
                 self.add(chicken);
+                // console.log(chicken.position)
             }
             if (cell.object) {
                 self.add(cell.object);
             }
         });
 
+        Status.log(" - building rivers");
         while(waterCells.length > 0){
             var waterVerts = [];
             var c = waterCells.shift();
@@ -382,15 +499,8 @@ export class Island extends THREE.Object3D {
                             var D = river[3];
                             if (B.x === C.x || B.y === C.y) {
                                 faces.push([Ai,Bi,Ci])
-// console.log(faces.length-1,"A",faces[faces.length-1])
                                 lastAv = Bi;
                                 lastBv = Ci;
-                                // this.faces.push(new THREE.Face3(Bi,Ci,3))
-                                // this.faces.push(new THREE.Face3(
-                                //     B.x!==D.x && B.y!==D.y ? Bi: Ci,
-                                //     3,4
-                                // ))
-                                // startV = 3;
                                 break;
                             }
                         }
@@ -398,45 +508,25 @@ export class Island extends THREE.Object3D {
                         var vA = river[addedVerts[0]];
                         var vB = river[addedVerts[1]];
                         if (vA.x === vB.x || vA.y === vB.y) {
-                            // Straight line
-                            // 3 5 7
                             faces.push([lastAv,lastBv,addedVerts[0]])
-// console.log(faces.length-1,"B",faces[faces.length-1])
-                            // faces.push([lastBv,river.length-2,river.length-1])
-                            // 5 7 3
                             faces.push([
                                 river[lastAv].x!==vA.x && river[lastAv].y!==vA.y ? lastAv: lastBv,
                                 addedVerts[0],
                                 addedVerts[1]
                             ])
-// console.log(faces.length-1,"C",faces[faces.length-1])
-
-
                             lastAv = addedVerts[0];
                             lastBv = addedVerts[1];
                         } else {
                             if (vB.x === lastAv.x || vB.y === lastAv.y || vB.x === lastBv.x || vB.y === lastBv.y ) {
-                                // swap vA and vB and vB comes 'first'
                                 var vA = river[addedVerts[1]];
                                 var vB = river[addedVerts[0]];
                             }
                             var innerVertex = river[lastAv].x!==vA.x && river[lastAv].y!==vA.y ? lastAv: lastBv;
-                            // this.markVertex({x:river[innerVertex].x,y:river[innerVertex].y,z:river[innerVertex].z+1}, 0x0099ff, "in",0.4)
-
                             var outerVertex = river[lastAv].x!==vA.x && river[lastAv].y!==vA.y ? lastBv: lastAv;
-                            // this.markVertex({x:river[outerVertex].x,y:river[outerVertex].y,z:river[outerVertex].z+1}, 0x0099ff, "out")
-
                             var nextOuter = river[outerVertex].x === vA.x || river[outerVertex].y === vA.y ? addedVerts[0]: addedVerts[1];
-                            // this.markVertex({x:river[nextOuter].x,y:river[nextOuter].y,z:river[nextOuter].z+1}, 0x0099ff, "out+1")
-
                             var nextNextOuter = river[outerVertex].x === vA.x || river[outerVertex].y === vA.y ? addedVerts[1]: addedVerts[0];
-                            // this.markVertex({x:river[nextNextOuter].x,y:river[nextNextOuter].y,z:river[nextNextOuter].z+1}, 0x0099ff, "out+2")
-                            // Corner
                             faces.push([innerVertex,outerVertex,nextOuter])
-// console.log(faces.length-1,"D",faces[faces.length-1])
                             faces.push([innerVertex,nextOuter,nextNextOuter])
-// console.log(faces.length-1,"E",faces[faces.length-1])
-
                             if (innerVertex === lastAv) {
                                 lastBv = nextNextOuter;
                             } else {
@@ -444,8 +534,6 @@ export class Island extends THREE.Object3D {
                             }
                         }
                     }
-
-
                     if (nextVert.z - currentVert.z < .2 && nextVert.z > -1) {
                         lastVert = currentVert;
                         currentVert = nextVert;
@@ -475,7 +563,15 @@ export class Island extends THREE.Object3D {
                     // v.z += 0.8;
                     // self.markVertex(v,0xff0000, i===0?riverId:i)
                     // v.z -= 0.8;;
-                    v.z -= 1;//(0.5+v.waterLength*0.01);
+                    v.z -= 0.6;//(0.5+v.waterLength*0.01);
+                    v.n.forEach(function(vv) {
+                        vv.c.corners.forEach(function(vvv) {
+                            if (vvv.water) {
+                                vv.c.river = true;
+                            }
+                        })
+                    });
+
                 })
              }
 
@@ -487,6 +583,68 @@ export class Island extends THREE.Object3D {
             //     waterCells.push(lowestVert.c);
             // }
         }
+
+
+        Status.log(" - sowing grass");
+        var grassPatches = [];
+
+        var grassCells = [];
+        this.cells.forEach(function(cell) {
+            if (!cell.water && !cell.object && !cell.river && cell.z > 2 && cell.z < 7 && Math.abs(cell.maxZ-cell.minZ)< 0.8 && Math.random() < 0.008) {
+                grassCells.push(cell);
+                // cell.face0.baseColor = HIGHLIGHT_COLOR;
+                // cell.face1.baseColor = HIGHLIGHT_COLOR;
+                // cell.face0.color.set(cell.face0.baseColor);
+                // cell.face1.color.set(cell.face1.baseColor);
+            }
+        });
+
+        while(grassCells.length > 0) {
+            var stack = [grassCells.shift()];
+            var size = 6+Math.floor(Math.random()*4);
+            var patch = [];
+            var mergedPatch = false;
+            while (stack.length > 0 && size > 0) {
+                var cell = stack.shift();
+                if (!cell.grass && !cell.water && !cell.object && !cell.river && cell.z > 2 && cell.z < 7  && Math.abs(cell.maxZ-cell.minZ)< 0.8) {
+                    cell.grass = true;
+                    cell.grassPatch = patch;
+                    patch.push(cell);
+                    // cell.face0.baseColor = HIGHLIGHT_COLOR;
+                    // cell.face1.baseColor = HIGHLIGHT_COLOR;
+                    // cell.face0.color.set(cell.face0.baseColor);
+                    // cell.face1.color.set(cell.face1.baseColor);
+                    size--;
+                    var firstN;
+                    cell.eachNeighbour(function(c,i) {
+                        if (i===0) {
+                            firstN = c;
+                        } else {
+                            stack.push(c);
+                        }
+                    })
+                    stack.push(firstN)
+                } else if (cell.grass && cell.grassPatch !== patch) {
+                    mergedPatch = true;
+                    var newPatch = cell.grassPatch;
+                    patch.forEach(function(cell) {
+                        cell.grassPatch = newPatch;
+                    })
+                    patch = newPatch;
+                }
+            }
+            if (!mergedPatch) {
+                grassPatches.push(patch);
+            }
+        }
+
+        grassPatches.forEach(gp => {
+            var gp = new Objects.GrassPatch(gp,self)
+            self.add(gp);
+            this.grass.push(gp);
+        })
+        Status.log("Populating island - done");
+
     }
     markVertex(v,c,n,off) {
         var b = new BaseMesh(
@@ -505,16 +663,44 @@ export class Island extends THREE.Object3D {
 
     }
 
+    getRegionNeighbours(region) {
+        // TODO: dry
+        var cellsPerRegionWidth = 3;
+        var regionsPerRow = (this.options.width-1)/cellsPerRegionWidth;
 
+        var result = [];
+        for (var x = -1;x<2;x++) {
+            for (var y = -1;y<2;y++) {
+                if (x === 0 && y === 0) { continue }
+                var regionIndex = region.i+x+(y*regionsPerRow);
+                if (regionIndex >= 0 && regionIndex < this.regions.length) {
+                    result.push(this.regions[regionIndex]);
+                }
+            }
+        }
+        return result;
+    }
+    isPointClear(x,y) {
+        var cell = this.getCellAt(x,y);
+        if (cell && cell.object) {
+            var dx = Math.abs(cell.x - x);
+            var dy = Math.abs(cell.y - y);
+            var dr = dx*dx + dy*dy;
+            var objRadius = cell.object.radius;
+            return dr > objRadius;
+        } else {
+            return true
+        }
+    }
     getCellAt(x,y) {
-        var pAx = Math.floor(x) + this.midWidth;
-        var pAy = this.options.height-Math.floor(y)-this.midHeight-1;
+        // var pAx = Math.floor(x) + this.midWidth;
+        // var pAy = this.options.height-Math.floor(y)-this.midHeight-1;
         var pCx = Math.ceil(x) + this.midWidth;
         var pCy = this.options.height- Math.ceil(y) - this.midHeight-1;
 
-        var vAIndex = pAy*this.options.width+pAx;
+        // var vAIndex = pAy*this.options.width+pAx;
         var vCIndex = pCy*this.options.width+pCx;
-        var A = this.vertices[vAIndex];
+        // var A = this.vertices[vAIndex];
         var C = this.vertices[vCIndex];
         // if (this.BLOB_A) {
         //     this.BLOB_A.position.copy(this.geometry.vertices[vAIndex]);
@@ -537,7 +723,8 @@ export class Island extends THREE.Object3D {
     getHeightAt(x,y) {
         var dx = x - Math.floor(x);
         var dy = y - Math.floor(y);
-
+        var cell = this.getCellAt(x,y);
+        var landHeight = -10;
         var pAx = Math.floor(x) + this.midWidth;
         var pAy = this.options.height-Math.floor(y)-this.midHeight-1;
         var pBx,pBy,pCx,pCy;
@@ -579,13 +766,13 @@ export class Island extends THREE.Object3D {
                 // }
                 if (vAIndex === vBIndex && vAIndex === vCIndex) {
                     // console.log("A",A.z)
-                    return A.z;
+                    landHeight = A.z;
                 } else if (vAIndex === vBIndex) {
                     // console.log("B",A.z + (C.z-A.z)*(y-Math.floor(y)))
-                    return A.z + (C.z-A.z)*(y-Math.floor(y))
+                    landHeight =  A.z + (C.z-A.z)*(y-Math.floor(y))
                 } else if (vAIndex === vCIndex|| vBIndex === vCIndex) {
                     // console.log("C",A.z + (B.z-A.z)*(x-Math.floor(x)))
-                    return A.z + (B.z-A.z)*(x-Math.floor(x))
+                    landHeight =  A.z + (B.z-A.z)*(x-Math.floor(x))
                 } else {
                     var  a1 = B.x - A.x;
                     var  b1 = B.y - A.y;
@@ -600,14 +787,26 @@ export class Island extends THREE.Object3D {
                     var  d = (- a * A.x - b * A.y - c * A.z);
                     var h = (-d - b * y - a * x) / c;
                     // console.log("D",h)
-                    return h;
+                    landHeight =  h;
                 }
             }
         }
-        return -10;
+        if (cell && cell.object && cell.object.getHeightAt) {
+            var objHeight = cell.object.getHeightAt(x,y);
+            if (objHeight > 0) {
+                landHeight = Math.max(landHeight,cell.z+objHeight);
+            }
+        }
+
+        return landHeight;
     }
 
     update(delta) {
         this.chickens.forEach(c => c.update(delta))
+        this.grass.forEach(g => g.update(delta))
+
+        if (Objects.GrassShader) {
+            Objects.GrassShader.uniforms.time.value = Time.getElapsedTime();
+        }
     }
 }
