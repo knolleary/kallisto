@@ -374,36 +374,26 @@ export class Island extends THREE.Object3D {
             }
 
             if (self.ruins < 1 && !cell.object && cell.h > 7 && Math.random() < 0.05) {
-                var ruinsCells = [cell];
-                var candidateRuinsCells = new Set();
-
-                var maxZ = cell.z;
-                for (var i=0;i<Math.PI*2; i+= Math.PI/8) {
-                    for (var d = 3;d>0;d-- ){
-                        var cx = Math.round(d*Math.cos(i));
-                        var cy = Math.round(d*Math.sin(i));
-                        var cn = cell.getNeighbour(cx,cy);
-                        // if (cn) {
-                        //     if (!candidateRuinsCells.has(cn)) {
-                        //         if (cn.object) {
-                        //
-                        //         }
-                        if (cn && !cn.object) {
-                            if (!cn.ruin) {
-                                cn.ruin = true;
-                                cn.ruinWall = (d===3);
-                                ruinsCells.push(cn);
-                                maxZ = Math.max(maxZ,cn.z);
+                var ruins = (function(cell) {
+                    var radius = 3;
+                    var candidateRuinsCells = new Set();
+                    for (var i=0;i<Math.PI*2; i+= Math.PI/8) {
+                        for (var d = radius;d>0;d-- ){
+                            var cx = Math.round(d*Math.cos(i));
+                            var cy = Math.round(d*Math.sin(i));
+                            var cn = cell.getNeighbour(cx,cy);
+                            if (cn && cn.object) {
+                                return null;
                             }
+                            candidateRuinsCells.add(cn);
                         }
                     }
+                    return new Objects.Ruins(cell,radius,Array.from(candidateRuinsCells));
+                })(cell);
+                if (ruins) {
+                    self.ruins++;
+                    self.add(ruins);
                 }
-                self.ruins++;
-                ruinsCells.forEach(function(cn) {
-                    if (cn.object) { console.log("CLASH",cn.object.type)}
-                    cn.object = new Objects.Ruins(cn,maxZ+(cn.ruinWall?0.8:0.3));
-                    self.add(cn.object);
-                })
             } else if (!cell.water && !cell.object && cell.h > 2 && cell.h < 6  && Math.random()<0.05) {
                 cell.object =  Math.random()<0.5?new Objects.Tree1(cell):new Objects.Tree2(cell);
                 self.trees.push(cell.object);
@@ -792,7 +782,7 @@ export class Island extends THREE.Object3D {
             }
         }
         if (cell && cell.object && cell.object.getHeightAt) {
-            var objHeight = cell.object.getHeightAt(x,y);
+            var objHeight = cell.object.getHeightAt(x,y,cell.z);
             if (objHeight > 0) {
                 landHeight = Math.max(landHeight,cell.z+objHeight);
             }
