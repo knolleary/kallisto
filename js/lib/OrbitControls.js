@@ -105,6 +105,9 @@ THREE.OrbitControls = function ( object, domElement, map ) {
 
 	};
 
+	this.flyOrbit = function() {
+		sphericalDelta.theta += 0.01;
+	}
 	this.saveState = function () {
 
 		scope.target0.copy( scope.target );
@@ -263,6 +266,19 @@ THREE.OrbitControls = function ( object, domElement, map ) {
 		//scope.dispatchEvent( { type: 'dispose' } ); // should this be added here?
 
 	};
+
+	this.enable = function() {
+		scope.domElement.addEventListener( 'contextmenu', onContextMenu, false );
+		scope.domElement.addEventListener( 'mousedown', onMouseDown, false );
+		scope.domElement.addEventListener( 'wheel', onMouseWheel, false );
+
+		scope.domElement.addEventListener( 'touchstart', onTouchStart, false );
+		scope.domElement.addEventListener( 'touchend', onTouchEnd, false );
+		scope.domElement.addEventListener( 'touchmove', onTouchMove, false );
+
+		scope.domElement.addEventListener( 'keydown', onKeyDown, false );
+
+	}
 
 	//
 	// internals
