@@ -5,12 +5,15 @@ var gui = new dat.GUI({
 });
 
 var params = {
-    rotateView: true,
+    rotateView: false,
     trunkBaseRadius: 0.2,
     trunkTopRadius: 0.1,
     trunkHeight: 3,
+    trunkRadialSegments: 5,
     branchRadius: 0.05,
     branchSteps: 6,
+    branchStepSize: 0.3,
+    branchRadialSegments: 5,
     attractionPointRadius: 5,
     attractionPointCount: 50,
     attractionPointHeightOffset: -1,
@@ -22,14 +25,16 @@ gui.add(params,"rotateView").name("Rotate");
 var trunkFolder = gui.addFolder('Trunk');
 trunkFolder.open();
 trunkFolder.add(params,"trunkHeight").name("Height").min(1).max(5).step(0.2);
-
+trunkFolder.add(params,"trunkRadialSegments").name("Radial Segs").min(3).max(9).step(1);
 trunkFolder.add(params,"trunkTopRadius").name("Top Radius").min(0).max(1).step(0.05);
 trunkFolder.add(params,"trunkBaseRadius").name("Base Radius").min(0.05).max(1).step(0.05);
 
 var branchFolder = gui.addFolder('Branch');
 branchFolder.open();
 branchFolder.add(params,"branchRadius").name("Radius").min(0.01).max(0.15).step(0.01);
+branchFolder.add(params,"branchRadialSegments").name("Radial Segs").min(3).max(9).step(1);
 branchFolder.add(params,"branchSteps").name("Steps").min(1).max(20).step(1);
+branchFolder.add(params,"branchStepSize").name("Step Size").min(0.1).max(1).step(0.1);
 
 var leafFolder = gui.addFolder('Foliage');
 leafFolder.open();
@@ -116,13 +121,27 @@ function markPoint(x,y,z,c) {
     return point;
 }
 
-function markLine(p1,p2,c,r) {
+function markLine(p1,p2,c,r,rs) {
     var curvePath = new THREE.CurvePath();
         curvePath.add(new THREE.LineCurve3(
             p1,
             p2
         ))
-        var tg = new THREE.TubeGeometry( curvePath, 2, r , 3, false );
+        var tg = new THREE.TubeGeometry( curvePath, 1, r , rs, false );
+        var material = new THREE.MeshLambertMaterial( { color: 0xff00ff } );
+        return new THREE.Mesh( tg, material );
+}
+
+
+function markPath(points,c,r,rs) {
+    var curvePath = new THREE.CurvePath();
+        for (var i=1;i<points.length;i++) {
+            curvePath.add(new THREE.LineCurve3(
+                points[i-1],
+                points[i]
+            ))
+        }
+        var tg = new THREE.TubeGeometry( curvePath, points.length*3, r , rs, false );
         var material = new THREE.MeshLambertMaterial( { color: c||0xff00ff, flatShading:true } );
         return new THREE.Mesh( tg, material );
 }
@@ -137,16 +156,20 @@ class Tree extends THREE.Object3D {
             attractionPointCount:40,
             attractionPointHeightOffset: -1,
             drawAttractionPoints: false,
+            trunkRadialSegments: 5,
             trunkBaseRadius: 0.2,
             trunkTopRadius: 0.1,
             branchSteps: 7,
+            branchStepSize: 0.3,
+            branchRadialSegments: 5,
             leafDepthRatio: 0.2
-        },params);
+        }, params);
 
         var self = this;
         this.config.trunkHeight = this.config.trunkHeight;
         this.attractionPointRadius = 1.8;
         this.leafNodes = new Set();
+        this.workingBranches = [];
 
         this.stage = 0;
 
@@ -171,13 +194,23 @@ class Tree extends THREE.Object3D {
             }
         }
 
+        var i=0;
         for (var y = 0;y<this.config.trunkHeight;y += 0.4) {
-            var p = {x:0,y:y,z:0,nearest: new Set()};
+            var p = {
+                x:0,
+                y:y,
+                z:0,
+                nearest: new Set(),
+                connected: [],
+                trunk: true,
+                i: this.points.length
+            };
+            if (i > 0) {
+                this.points[i-1].connected.push(p);
+            }
+            i++;
             this.points.push(p);
             this.calculateDistancesForPointAt(p);
-            // if (this.points.length > 1) {
-            //     this.add(markLine(this.points[this.points.length-2],this.points[this.points.length-1],0x996633));
-            // }
         }
 
 
@@ -215,13 +248,15 @@ class Tree extends THREE.Object3D {
     step() {
         var self = this;
         if (this.stage === 0) {
-            var trunkGeometry = new THREE.CylinderGeometry( this.config.trunkTopRadius, this.config.trunkBaseRadius, this.config.trunkHeight, 5 );
+            var trunkGeometry = new THREE.CylinderGeometry( this.config.trunkTopRadius, this.config.trunkBaseRadius, this.config.trunkHeight, this.config.trunkRadialSegments );
             var trunkMaterial = new THREE.MeshLambertMaterial( {color: 0x996633,flatShading:true} );
             var trunk = new THREE.Mesh( trunkGeometry, trunkMaterial );
             trunk.position.set(0,this.config.trunkHeight/2,0);
             this.add( trunk );
         } else if (this.stage < this.config.branchSteps) {
             this.iterate(this.stage-1);
+        } else if (this.stage === this.config.branchSteps) {
+            this.simplify()
         } else {
             this.leafNodes.forEach(function(p) {
                 var geometry = new THREE.IcosahedronGeometry( p.gen*self.config.leafDepthRatio );
@@ -248,8 +283,17 @@ class Tree extends THREE.Object3D {
                     distance.subVectors(aps,p);
                     delta.add(distance);
                 })
-                delta.normalize().multiplyScalar(0.3).add(p);
-                var p2 = {x:delta.x,y:delta.y,z:delta.z,nearest: new Set(),gen:generation};
+                delta.normalize().multiplyScalar(self.config.branchStepSize).add(p);
+                var p2 = {
+                    x: delta.x,
+                    y: delta.y,
+                    z: delta.z,
+                    nearest: new Set(),
+                    connected: [],
+                    gen:generation,
+                    i: self.points.length+newPoints.length
+                };
+                p.connected.push(p2);
                 newPoints.push({from:p,to:p2});
                 self.leafNodes.delete(p);
                 self.leafNodes.add(p2);
@@ -260,7 +304,9 @@ class Tree extends THREE.Object3D {
             self.points.push(np.to);
             // self.add(markPoint(np.to.x,np.to.y,np.to.z,c));
             self.calculateDistancesForPointAt(np.to);
-            self.add(markLine(np.from,np.to,0x996633,self.config.branchRadius));
+            var line = markLine(np.from,np.to,0x996633,self.config.branchRadius,self.config.branchRadialSegments);
+            self.workingBranches.push(line);
+            self.add(line);
         })
 
         var recalculate = [];
@@ -278,6 +324,52 @@ class Tree extends THREE.Object3D {
         })
 
         return newPoints.length > 0;
+    }
+
+    simplify() {
+        var self = this;
+        this.workingBranches.forEach(function(b) {
+            self.remove(b);
+        })
+
+        var workingPoints = [this.points[0]];
+
+
+        var branches = [];
+        var currentBranch = [];
+        var workingStack = [];
+
+        while(workingPoints.length > 0) {
+            var p = workingPoints.shift();
+            if (!p.trunk) {
+                // Add this branch node to the currentBranch
+                currentBranch.push(p);
+            }
+            if (p.connected.length === 0) {
+                // End of an branch
+                branches.push(currentBranch);
+                currentBranch = workingStack.shift();
+                if (currentBranch) {
+                    workingPoints.push(currentBranch.pop());
+                }
+            } else if (p.connected.length > 0){
+                if (!p.connected[0].trunk && currentBranch.length === 0) {
+                    currentBranch.push(p);
+                }
+                workingPoints.push(p.connected[0]);
+                if (p.connected.length > 1) {
+                    for (var i=1;i<p.connected.length;i++) {
+                        workingStack.push([p,p.connected[i]])
+                    }
+                }
+            }
+        }
+        branches.forEach(function(b) {
+            if (b.length > 1) {
+                self.add(markPath(b,0x996633,self.config.branchRadius,self.config.branchRadialSegments));
+
+            }
+        })
     }
 
     calculateDistancesForPointAt(p) {
@@ -300,6 +392,19 @@ class Tree extends THREE.Object3D {
 
 }
 
+function getBranches(p) {
+
+    if (p.connected.length === 0) {
+        return p;
+    } else {
+        var result = [p];
+        p.connected.forEach(function(p2) {
+            result.push([getChildBranches(p2)])
+        })
+        return result;
+    }
+}
+
 var t = new Tree();
 scene.add(t);
 
@@ -313,6 +418,11 @@ function stepTree() {
             scene.add(t);
             stepTree();
         },2000)
+
+
+        var vc = 0;
+        t.children.forEach(function(g) { vc += g.geometry.vertices.length;})
+        console.log(vc);
     }
 }
 stepTree()
