@@ -1,13 +1,15 @@
 
+// http://algorithmicbotany.org/papers/colonization.egwnp2007.large.pdf
+
 
 var gui = new dat.GUI({
     height : 5 * 32 - 1
 });
 
 var params = {
-    rotateView: false,
+    rotateView: true,
     trunkBaseRadius: 0.2,
-    trunkTopRadius: 0.1,
+    trunkTopRadius: 0.05,
     trunkHeight: 3,
     trunkRadialSegments: 5,
     branchRadius: 0.05,
@@ -36,7 +38,7 @@ trunkFolder.add(params,"trunkBaseRadius").name("Base Radius").min(0.05).max(1).s
 
 var branchFolder = gui.addFolder('Branch');
 branchFolder.open();
-branchFolder.add(params,"branchRadius").name("Radius").min(0.01).max(0.15).step(0.01);
+branchFolder.add(params,"branchRadius").name("Radius").min(0.01).max(0.3).step(0.01);
 branchFolder.add(params,"branchRadialSegments").name("Radial Segs").min(3).max(9).step(1);
 branchFolder.add(params,"branchSteps").name("Steps").min(1).max(20).step(1);
 branchFolder.add(params,"branchStepSize").name("Step Size").min(0.1).max(1).step(0.1);
@@ -52,7 +54,7 @@ apFolder.add(params,"drawAttractionPoints").name("Draw");
 apFolder.add(params,"attractionPointCount").name("Count").min(1).max(500).step(1);
 apFolder.add(params,"attractionPointRadius").name("Radius").min(0.1).max(10).step(0.1);
 apFolder.add(params,"attractionPointHeightOffset").name("Height Offset").min(-2).max(2).step(0.2);
-apFolder.add(params,"attractionVerticalRatio").name("Vertical Ratio").min(0.1).max(2).step(0.1);
+apFolder.add(params,"attractionVerticalRatio").name("Vertical Ratio").min(0.1).max(5).step(0.1);
 
 apFolder.open();
 
