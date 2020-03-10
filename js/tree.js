@@ -72,17 +72,15 @@ document.getElementById("render").appendChild( renderer.domElement );
 var ambientLight = new THREE.AmbientLight( 0xcccccc );
 scene.add( ambientLight );
 
+var directionalLight2 = new THREE.DirectionalLight( 0xffffff, 0.3 );
+directionalLight2.castShadow = true;
+directionalLight2.position.set( 1, 1, 5 ).normalize();
+scene.add( directionalLight2 );
+
+
 var directionalLight = new THREE.DirectionalLight( 0xffffff, 0.3 );
 directionalLight.castShadow = true;
-directionalLight.shadow.mapSize.width = 1024;  // default
-directionalLight.shadow.mapSize.height = 1024; // default
-directionalLight.shadow.camera.near = -100 // default
-directionalLight.shadow.camera.far = 100 // default
-directionalLight.shadow.camera.top = -100 // default
-directionalLight.shadow.camera.right = 100 // default
-directionalLight.shadow.camera.left = -100 // default
-directionalLight.shadow.camera.bottom = 100 // default
-directionalLight.position.set( 1, 1, 5 ).normalize();
+directionalLight.position.set( -1, 1, -5 ).normalize();
 scene.add( directionalLight );
 
 var camera = new THREE.PerspectiveCamera( 60, window.innerWidth/window.innerHeight, 0.1, 200 );
