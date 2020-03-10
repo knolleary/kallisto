@@ -1,5 +1,5 @@
-var clock = new THREE.Clock();
-
+var clock = new THREE.Clock(false);
+clock.start();
 var GSECS_PER_MIN = 0.5;
 var GSECS_PER_HOUR = GSECS_PER_MIN*60;
 var GSECS_PER_DAY = GSECS_PER_HOUR*24;
@@ -12,17 +12,20 @@ export const SUNRISE = 1; // 03:00 - 06:59
 export const DAY = 2;     // 07:00 - 18:59
 export const SUNSET = 3;  // 19:00 - 22:59
 
+var gameClockDelta = 0;
+var gameElapsed = 0;
+
 export function delta() {
     return Math.min(clock.getDelta(),0.5);
 }
 export function getElapsedTime() {
-    return clock.getElapsedTime();
+    return gameElapsed + clock.getElapsedTime();
 }
 export function now() {
-    return Math.floor(clock.getElapsedTime());
+    return Math.floor(getElapsedTime());
 }
 export function getTime() {
-    return (Math.floor(clock.getElapsedTime())+START_TIME)%GSECS_PER_DAY;
+    return (Math.floor(getElapsedTime())+START_TIME)%GSECS_PER_DAY;
 }
 export function getTimestamp() {
     var time = getTime();
@@ -61,4 +64,15 @@ export function getPercentageOfPhase() {
     } else {
         return (mins-1200)/240
     }
+}
+
+
+export function start() {
+    gameElapsed += clock.getElapsedTime();
+    clock.start();
+}
+export function pause() {
+    // console.log(clock.getElapsedTime());
+    clock.stop();
+
 }

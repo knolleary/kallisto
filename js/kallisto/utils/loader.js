@@ -22,7 +22,7 @@ export function loadModel(model, callback) {
 
 export function onReady(callback) {
     if (isReady) {
-        func();
+        callback();
     } else {
         readyCallbacks.push(callback);
     }
