@@ -15,15 +15,13 @@ function generateIsland(scene,opts) {
     return map;
 }
 
-State.set(State.MENU);
-var mainMenu = new Menu([
-    {label:"Start", select: function() { mainMenu.hide(); start() }},
-    {label:"two"},
-    {label:"three"}
-])
-mainMenu.show();
+// State.set(State.MENU);
+// var mainMenu = new Menu([
+//     {label:"Start", select: function() { mainMenu.hide(); start() }},
+// ])
+// mainMenu.show();
 
-
+start();
 
 function start() {
     Loader.onReady(function() {
