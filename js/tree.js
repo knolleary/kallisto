@@ -94,7 +94,7 @@ plane.rotation.x = Math.PI/2;
 // cube.add( line );
 
 var controls = new THREE.OrbitControls(camera, renderer.domElement);
-
+controls.target.set(0,2,0);
 var animate = function () {
     if (params.rotateView) {
         controls.flyOrbit();
