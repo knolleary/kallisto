@@ -14,16 +14,21 @@ var params = {
     branchSteps: 6,
     branchStepSize: 0.3,
     branchRadialSegments: 5,
+    drawBranchPoints: false,
     attractionPointRadius: 5,
     attractionPointCount: 50,
     attractionPointHeightOffset: -1,
     drawAttractionPoints: false,
-    leafDepthRatio: 0.2
+    leafDepthRatio: 0.2,
+    drawFoliage: true,
+    drawTrunk: true,
+    attractionVerticalRatio: 1
 };
 gui.add(params,"rotateView").name("Rotate");
 
 var trunkFolder = gui.addFolder('Trunk');
 trunkFolder.open();
+trunkFolder.add(params,"drawTrunk").name("Draw");
 trunkFolder.add(params,"trunkHeight").name("Height").min(1).max(5).step(0.2);
 trunkFolder.add(params,"trunkRadialSegments").name("Radial Segs").min(3).max(9).step(1);
 trunkFolder.add(params,"trunkTopRadius").name("Top Radius").min(0).max(1).step(0.05);
@@ -35,16 +40,20 @@ branchFolder.add(params,"branchRadius").name("Radius").min(0.01).max(0.15).step(
 branchFolder.add(params,"branchRadialSegments").name("Radial Segs").min(3).max(9).step(1);
 branchFolder.add(params,"branchSteps").name("Steps").min(1).max(20).step(1);
 branchFolder.add(params,"branchStepSize").name("Step Size").min(0.1).max(1).step(0.1);
+branchFolder.add(params,"drawBranchPoints").name("Draw Points");
 
 var leafFolder = gui.addFolder('Foliage');
 leafFolder.open();
-leafFolder.add(params,"leafDepthRatio").name("Depth/Size Ratio").min(0.02).max(1).step(0.001);
+leafFolder.add(params,"drawFoliage").name("Draw");
+leafFolder.add(params,"leafDepthRatio").name("Depth/Size Ratio").min(0.005).max(0.3).step(0.001);
 
 var apFolder = gui.addFolder('Attraction Points');
 apFolder.add(params,"drawAttractionPoints").name("Draw");
 apFolder.add(params,"attractionPointCount").name("Count").min(1).max(500).step(1);
 apFolder.add(params,"attractionPointRadius").name("Radius").min(0.1).max(10).step(0.1);
 apFolder.add(params,"attractionPointHeightOffset").name("Height Offset").min(-2).max(2).step(0.2);
+apFolder.add(params,"attractionVerticalRatio").name("Vertical Ratio").min(0.1).max(2).step(0.1);
+
 apFolder.open();
 
 
@@ -113,8 +122,8 @@ animate();
 
 
 
-function markPoint(x,y,z,c) {
-    var geometry = new THREE.SphereGeometry( 0.05 );
+function markPoint(x,y,z,c,r) {
+    var geometry = new THREE.SphereGeometry( r||0.05 );
     var material = new THREE.MeshBasicMaterial( {color: c||0xaa0000} );
     var point = new THREE.Mesh( geometry, material );
     point.position.set(x,y,z);
@@ -155,6 +164,7 @@ class Tree extends THREE.Object3D {
             attractionPointRadius: 1.8,
             attractionPointCount:40,
             attractionPointHeightOffset: -1,
+            attractionVerticalRatio: 1,
             drawAttractionPoints: false,
             trunkRadialSegments: 5,
             trunkBaseRadius: 0.2,
@@ -162,7 +172,10 @@ class Tree extends THREE.Object3D {
             branchSteps: 7,
             branchStepSize: 0.3,
             branchRadialSegments: 5,
-            leafDepthRatio: 0.2
+            leafDepthRatio: 0.2,
+            drawFoliage: true,
+            drawBranchPoints: false,
+            drawTrunk: true
         }, params);
 
         var self = this;
@@ -187,7 +200,7 @@ class Tree extends THREE.Object3D {
 
             var x = this.config.attractionPointRadius * Math.cos(elevation) * Math.cos(azimuth);
             var z = this.config.attractionPointRadius * Math.cos(elevation) * Math.sin(azimuth);
-            var y = this.config.trunkHeight + this.config.attractionPointHeightOffset + this.config.attractionPointRadius * Math.sin(elevation);
+            var y = this.config.trunkHeight + this.config.attractionPointHeightOffset + this.config.attractionPointRadius * Math.sin(elevation) * this.config.attractionVerticalRatio;
             this.aps.push({x:x,y:y,z:z,dToNearest:1000});
             if (this.config.drawAttractionPoints) {
                 this.add(markPoint(x,y,z,0xff9900));
@@ -248,23 +261,27 @@ class Tree extends THREE.Object3D {
     step() {
         var self = this;
         if (this.stage === 0) {
-            var trunkGeometry = new THREE.CylinderGeometry( this.config.trunkTopRadius, this.config.trunkBaseRadius, this.config.trunkHeight, this.config.trunkRadialSegments );
-            var trunkMaterial = new THREE.MeshLambertMaterial( {color: 0x996633,flatShading:true} );
-            var trunk = new THREE.Mesh( trunkGeometry, trunkMaterial );
-            trunk.position.set(0,this.config.trunkHeight/2,0);
-            this.add( trunk );
+            if (this.config.drawTrunk) {
+                var trunkGeometry = new THREE.CylinderGeometry( this.config.trunkTopRadius, this.config.trunkBaseRadius, this.config.trunkHeight, this.config.trunkRadialSegments );
+                var trunkMaterial = new THREE.MeshLambertMaterial( {color: 0x996633,flatShading:true} );
+                var trunk = new THREE.Mesh( trunkGeometry, trunkMaterial );
+                trunk.position.set(0,this.config.trunkHeight/2,0);
+                this.add( trunk );
+            }
         } else if (this.stage < this.config.branchSteps) {
             this.iterate(this.stage-1);
         } else if (this.stage === this.config.branchSteps) {
             this.simplify()
         } else {
-            this.leafNodes.forEach(function(p) {
-                var geometry = new THREE.IcosahedronGeometry( p.gen*self.config.leafDepthRatio );
-                var material = new THREE.MeshLambertMaterial( {color: 0x33ee66,flatShading:true} );
-                var point = new THREE.Mesh( geometry, material );
-                point.position.set(p.x,p.y,p.z);
-                self.add( point );
-            });
+            if (this.config.drawFoliage) {
+                this.leafNodes.forEach(function(p) {
+                    var geometry = new THREE.IcosahedronGeometry( p.gen*self.config.leafDepthRatio );
+                    var material = new THREE.MeshLambertMaterial( {color: 0x33ee66,flatShading:true} );
+                    var point = new THREE.Mesh( geometry, material );
+                    point.position.set(p.x,p.y,p.z);
+                    self.add( point );
+                });
+            }
             return false;
         }
 
@@ -334,7 +351,11 @@ class Tree extends THREE.Object3D {
 
         var workingPoints = [this.points[0]];
 
-
+        if (this.config.drawBranchPoints) {
+            this.points.forEach(function(p) {
+                self.add(markPoint(p.x,p.y,p.z,0x0000ff,0.1));
+            });
+        }
         var branches = [];
         var currentBranch = [];
         var workingStack = [];
