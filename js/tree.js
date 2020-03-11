@@ -8,6 +8,7 @@ var gui = new dat.GUI({
 
 var params = {
     rotateView: true,
+    regenerate: true,
     trunkBaseRadius: 0.2,
     trunkTopRadius: 0.05,
     trunkHeight: 3,
@@ -27,6 +28,11 @@ var params = {
     attractionVerticalRatio: 1
 };
 gui.add(params,"rotateView").name("Rotate");
+gui.add(params,"regenerate").name("Regenerate").onChange(function(value) {
+    if (value && !generating) {
+        generateTree();
+    }
+});
 
 var trunkFolder = gui.addFolder('Trunk');
 trunkFolder.open();
@@ -426,27 +432,37 @@ function getBranches(p) {
     }
 }
 
-var t = new Tree();
-scene.add(t);
+var generating = false;
+var currentTree;
+function generateTree() {
+    generating = true;
+    if (currentTree) {
+        scene.remove(currentTree);
+    }
+    currentTree = new Tree();
+    scene.add(currentTree);
+    stepTree();
+}
+
 
 function stepTree() {
-    if (t.step()) {
+    if (currentTree.step()) {
         setTimeout(stepTree,100);
     } else {
-        setTimeout(function() {
-            scene.remove(t);
-            t = new Tree();
-            scene.add(t);
-            stepTree();
-        },2000)
-
-
-        var vc = 0;
-        t.children.forEach(function(g) { vc += g.geometry.vertices.length;})
-        console.log(vc);
+        generating = false
+        if (params.regenerate) {
+            setTimeout(function() {
+                if (params.regenerate) {
+                    generateTree()
+                }
+            },3000)
+        }
+        // var vc = 0;
+        // t.children.forEach(function(g) { vc += g.geometry.vertices.length;})
+        // console.log(vc);
     }
 }
-stepTree()
+generateTree();
 
 // for (var x = 0; x<4;x++) {
 //     for (var y = 0; y<4;y++) {
