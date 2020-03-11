@@ -7,8 +7,6 @@ var gui = new dat.GUI({
 });
 
 var params = {
-    rotateView: true,
-    regenerate: true,
     trunkBaseRadius: 0.2,
     trunkTopRadius: 0.05,
     trunkHeight: 3,
@@ -27,8 +25,19 @@ var params = {
     drawTrunk: true,
     attractionVerticalRatio: 1
 };
-gui.add(params,"rotateView").name("Rotate");
-gui.add(params,"regenerate").name("Regenerate").onChange(function(value) {
+
+if (document.location.hash && document.location.hash.length > 1) {
+    Object.assign(params,decodeParams(document.location.hash.substring(1)))
+}
+
+
+var guiControls = {
+    rotateView: true,
+    regenerate: true,
+}
+gui.add(guiControls,"rotateView").name("Rotate");
+gui.add(guiControls,"regenerate").name("Regenerate").onChange(function(value) {
+    clearTimeout(generateTimeout);
     if (value && !generating) {
         generateTree();
     }
@@ -116,7 +125,7 @@ plane.rotation.x = Math.PI/2;
 var controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.target.set(0,2,0);
 var animate = function () {
-    if (params.rotateView) {
+    if (guiControls.rotateView) {
         controls.flyOrbit();
     }
     controls.update();
@@ -435,6 +444,7 @@ function getBranches(p) {
 var generating = false;
 var currentTree;
 function generateTree() {
+    encodeParams();
     generating = true;
     if (currentTree) {
         scene.remove(currentTree);
@@ -444,30 +454,49 @@ function generateTree() {
     stepTree();
 }
 
-
+var generateTimeout;
 function stepTree() {
     if (currentTree.step()) {
         setTimeout(stepTree,100);
     } else {
         generating = false
-        if (params.regenerate) {
-            setTimeout(function() {
-                if (params.regenerate) {
+        if (guiControls.regenerate) {
+            generateTimeout = setTimeout(function() {
+                if (guiControls.regenerate) {
                     generateTree()
                 }
             },3000)
         }
-        // var vc = 0;
-        // t.children.forEach(function(g) { vc += g.geometry.vertices.length;})
-        // console.log(vc);
+        var vc = 0;
+        currentTree.children.forEach(function(g) { vc += g.geometry.vertices.length;})
+        console.log("Vertex count",vc);
     }
 }
 generateTree();
 
-// for (var x = 0; x<4;x++) {
-//     for (var y = 0; y<4;y++) {
-//         var t = new Tree();
-//         t.position.set(4*x+Math.random()-6,0,4*y+Math.random()-6);
-//         scene.add(t);
-//     }
-// }
+
+
+function encodeParams() {
+    document.location.hash = "#"+btoa(Object.keys(params).map(function(k) {return k[0]+k[Math.floor(k.length*0.25)]+k[Math.floor(k.length*0.75)]+k[k.length-1]+"="+params[k]}).join(":"))
+}
+function decodeParams(encodedParams) {
+    var result = {};
+    var paramMap = {}
+    Object.keys(params).forEach(function(k) {
+        paramMap[k[0]+k[Math.floor(k.length*0.25)]+k[Math.floor(k.length*0.75)]+k[k.length-1]] = k;
+    })
+    atob(encodedParams).split(":").forEach(function(kv) {
+        var parts = kv.split("=");
+        var longParam = paramMap[parts[0]];
+        if (longParam) {
+            if (typeof params[longParam] === "number") {
+                parts[1] = parseFloat(parts[1]);
+            } else if (typeof params[longParam] === "boolean") {
+                parts[1] = parts[1]==="true";
+            }
+        }
+        result[paramMap[parts[0]]] = parts[1];
+    })
+    return result;
+
+}
