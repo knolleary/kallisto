@@ -394,8 +394,9 @@ export class Island extends THREE.Object3D {
                     self.ruins++;
                     self.add(ruins);
                 }
-            } else if (!cell.water && !cell.object && cell.h > 2 && cell.h < 6  && Math.random()<0.05) {
-                cell.object =  Math.random()<0.5?new Objects.Tree1(cell):new Objects.Tree2(cell);
+            } else if (!cell.water && !cell.object && cell.h > 2 && cell.h < 6  && Math.random()<0.02) {
+                // cell.object =  Math.random()<0.5?new Objects.Tree1(cell):new Objects.Tree2(cell);
+                cell.object = new Objects.Tree(cell);
                 self.trees.push(cell.object);
             } else if (!cell.object && (
                 (cell.h >=0 && cell.h < 1 && Math.random()<0.08) ||
@@ -418,8 +419,9 @@ export class Island extends THREE.Object3D {
                 self.add(cell.object);
             }
         });
-
+        Status.log("  - "+self.trees.length+" trees")
         Status.log(" - building rivers");
+        var riverCount = 0;
         while(waterCells.length > 0){
             var waterVerts = [];
             var c = waterCells.shift();
@@ -540,7 +542,7 @@ export class Island extends THREE.Object3D {
                 c.object = new Objects.Rock(c,true);
                 self.rocks.push(c.object);
                 self.add(c.object);
-
+                riverCount++;
                 var r = new Objects.River(river,faces);
                 this.add(r)
                 // this.add(r.lines)
@@ -573,21 +575,22 @@ export class Island extends THREE.Object3D {
             //     waterCells.push(lowestVert.c);
             // }
         }
+        Status.log("  - "+riverCount+" rivers")
 
 
         Status.log(" - sowing grass");
         var grassPatches = [];
 
         var grassCells = [];
-        this.cells.forEach(function(cell) {
-            if (!cell.water && !cell.object && !cell.river && cell.z > 2 && cell.z < 7 && Math.abs(cell.maxZ-cell.minZ)< 0.8 && Math.random() < 0.008) {
-                grassCells.push(cell);
-                // cell.face0.baseColor = HIGHLIGHT_COLOR;
-                // cell.face1.baseColor = HIGHLIGHT_COLOR;
-                // cell.face0.color.set(cell.face0.baseColor);
-                // cell.face1.color.set(cell.face1.baseColor);
-            }
-        });
+        // this.cells.forEach(function(cell) {
+        //     if (!cell.water && !cell.object && !cell.river && cell.z > 2 && cell.z < 7 && Math.abs(cell.maxZ-cell.minZ)< 0.8 && Math.random() < 0.008) {
+        //         grassCells.push(cell);
+        //         // cell.face0.baseColor = HIGHLIGHT_COLOR;
+        //         // cell.face1.baseColor = HIGHLIGHT_COLOR;
+        //         // cell.face0.color.set(cell.face0.baseColor);
+        //         // cell.face1.color.set(cell.face1.baseColor);
+        //     }
+        // });
 
         while(grassCells.length > 0) {
             var stack = [grassCells.shift()];
