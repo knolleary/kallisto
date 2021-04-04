@@ -285,31 +285,31 @@ function start() {
 
         animate();
 
-        Keyboard.onKey(State.PLAYING,["ShiftLeft","ShiftRight"], function(){ player.running = true }, function(){ player.running = false });
-        Keyboard.onKey(State.PLAYING,["KeyW","ArrowUp"], function(){ player.moveForward = true }, function(){ player.moveForward = false });
-        Keyboard.onKey(State.PLAYING,["KeyS","ArrowDown"], function(){ player.moveBack = true }, function(){ player.moveBack = false });
-        Keyboard.onKey(State.PLAYING,["KeyD","ArrowRight"], function(){ player.turnRight = true }, function(){ player.turnRight = false });
-        Keyboard.onKey(State.PLAYING,["KeyA","ArrowLeft"], function(){ player.turnLeft = true }, function(){ player.turnLeft = false });
-        Keyboard.onKey(State.PLAYING,["Space"], function(){ player.jump(true) }, function(){ player.jump(false) });
-
-        Keyboard.onKeyDown(State.PLAYING,["KeyE"], function(){ player.interact() });
-        Keyboard.onKeyDown(State.PLAYING,["KeyP"], function(){ pause() });
-        Keyboard.onKeyDown(State.PLAYING,["KeyC"], function(){
-            CAMERA_STATE = (CAMERA_STATE+1)%3;
-            if (CAMERA_STATE === 0) {
-                activeCamera = camera;
-            } else if (CAMERA_STATE === 1) {
-                activeCamera = skyCamera;
-                skyCamera.position.set( 0, 20, 0 );
-                skyCamera.lookAt(0,0,0);
-            } else if (CAMERA_STATE === 2) {
-                activeCamera = skyCamera;
-                skyCamera.position.set( 100, 0, 0 );
-                skyCamera.lookAt(0,0,0);
-            }
-        });
-
-        Keyboard.onKeyDown(State.PAUSED,["KeyP"], function(){ pause() });
+        // Keyboard.onKey(State.PLAYING,["ShiftLeft","ShiftRight"], function(){ player.running = true }, function(){ player.running = false });
+        // Keyboard.onKey(State.PLAYING,["KeyW","ArrowUp"], function(){ player.moveForward = true }, function(){ player.moveForward = false });
+        // Keyboard.onKey(State.PLAYING,["KeyS","ArrowDown"], function(){ player.moveBack = true }, function(){ player.moveBack = false });
+        // Keyboard.onKey(State.PLAYING,["KeyD","ArrowRight"], function(){ player.turnRight = true }, function(){ player.turnRight = false });
+        // Keyboard.onKey(State.PLAYING,["KeyA","ArrowLeft"], function(){ player.turnLeft = true }, function(){ player.turnLeft = false });
+        // Keyboard.onKey(State.PLAYING,["Space"], function(){ player.jump(true) }, function(){ player.jump(false) });
+        //
+        // Keyboard.onKeyDown(State.PLAYING,["KeyE"], function(){ player.interact() });
+        // Keyboard.onKeyDown(State.PLAYING,["KeyP"], function(){ pause() });
+        // Keyboard.onKeyDown(State.PLAYING,["KeyC"], function(){
+        //     CAMERA_STATE = (CAMERA_STATE+1)%3;
+        //     if (CAMERA_STATE === 0) {
+        //         activeCamera = camera;
+        //     } else if (CAMERA_STATE === 1) {
+        //         activeCamera = skyCamera;
+        //         skyCamera.position.set( 0, 20, 0 );
+        //         skyCamera.lookAt(0,0,0);
+        //     } else if (CAMERA_STATE === 2) {
+        //         activeCamera = skyCamera;
+        //         skyCamera.position.set( 100, 0, 0 );
+        //         skyCamera.lookAt(0,0,0);
+        //     }
+        // });
+        //
+        // Keyboard.onKeyDown(State.PAUSED,["KeyP"], function(){ pause() });
 
 
         function pause() {

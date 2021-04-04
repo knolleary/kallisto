@@ -37,7 +37,7 @@ export class Sea extends THREE.Object3D {
                         float amp = 0.05;
                         float angle = (time + position.x)*freq;
                         float tidalAngle = time * 0.01;
-                        transformed.z += sin(angle)*amp - 0.5+sin(tidalAngle)*0.5;
+                        transformed.z += sin(angle)*amp;// - 0.5+sin(tidalAngle)*0.1;
                     `
                     shader.vertexShader = shader.vertexShader.replace(token,customTransform)
                     that.waterShader = shader;

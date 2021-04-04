@@ -1,5 +1,6 @@
+import * as Popover from "../utils/popover.js"
 import * as IslandMath from '../utils/math.js'
-
+import {StateMachine, State} from '../utils/states.js'
 
 export class BaseMesh extends THREE.Mesh {
     constructor(geometry,material) {
@@ -14,8 +15,13 @@ export class BaseObject extends THREE.Object3D {
     constructor(type) {
         super();
         this.type = type;
+        this._logStateChanges = false;
+        this._showStatePopover = true;
+        this.attributes = {
+            pickup: false,
+            attack: false
+        }
     }
-
     setCell(cell) {
         this.cell = cell;
         this.position.x = cell.x;
@@ -27,17 +33,26 @@ export class BaseObject extends THREE.Object3D {
             this.cell.highlight(on)
         }
     }
-
     getHeightAt(dx,dy) {
         // Get the height of the object at the given x/y from its center
         return 0;
     }
+    onStateChange(oldState,newState) {
+        if (this._logStateChanges) {
+            console.log((new Date()).toLocaleTimeString(),this.type,oldState,"->",newState)
+        }
+    }
+    notify(event,details) {
+        console.log(this.type,"notify",event,details);
+    }
 }
 
 
-export class Character extends THREE.Object3D {
+export class Character extends BaseObject {
     constructor(type,map) {
         super();
+        this.actions = {};
+        this.state = new StateMachine(this);
         this.type = type;
         this.map = map;
         this.currentCell = null;
@@ -66,8 +81,6 @@ export class Character extends THREE.Object3D {
         //     new THREE.MeshLambertMaterial( {color: 0x0000ff, flatShading:true} )
         // );
         // this.add(this.BLOB_C);
-
-
     }
     updateHeading() {
         if (this.heading < 0) { this.heading += Math.PI*2 }
@@ -145,6 +158,7 @@ export class Character extends THREE.Object3D {
         return nearbys;
     }
     step(delta) {
+        this.state.step(delta);
         var newX = this.position.x;
         var newY = this.position.y;
         var newZ;
@@ -256,6 +270,19 @@ export class Character extends THREE.Object3D {
 
         return collided;
     }
+
+    onStateChange(oldState,newState) {
+        super.onStateChange(oldState,newState);
+        if (this._showStatePopover) {
+            if (this.popover) {
+                this.remove(this.popover);
+            }
+            this.popover = Popover.makeLabel(newState);
+            this.popover.position.z = 1.6;
+            this.add(this.popover);
+        }
+    }
+
 }
 /**
  * BaseObject extends THREE.Object3D

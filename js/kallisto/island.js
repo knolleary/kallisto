@@ -5,32 +5,11 @@ import {BaseMesh,BaseObject} from "./objects/baseObject.js"
 import * as Objects from "./objects/index.js"
 import * as Status from "./utils/status.js"
 import * as Time from "./utils/time.js"
-
+import * as Popover from "./utils/popover.js"
 
 var FLAT_LANDIA = false;
 
-function makeTextTexture(str) {
-    const ctx = document.createElement('canvas').getContext('2d');
-    ctx.canvas.width = 64;
-    ctx.canvas.height = 64;
-    ctx.font = '20px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#FFF';
-    ctx.fillText(str, ctx.canvas.width / 2, ctx.canvas.height / 2);
-    return new THREE.CanvasTexture(ctx.canvas);
-}
-function makeLabel(text) {
-    const noteTexture = makeTextTexture(text);
-    const noteMaterial = new THREE.SpriteMaterial({
-        color: new THREE.Color().setHSL(Math.random()*1, 1, 0.5),
-        map: noteTexture,
-        side: THREE.DoubleSide,
-        transparent: true,
-    });
-    const note = new THREE.Sprite(noteMaterial);
-    return note;
-}
+
 
 var WATER_COLOR = new THREE.Color("#ccddff");
 var CLIFF_COLOR = new THREE.Color("#dddd99");
@@ -647,7 +626,7 @@ export class Island extends THREE.Object3D {
         b.position.copy(v);
         this.add(b);
         if (n) {
-            var note = makeLabel(n);
+            var note = Popover.makeLabel(n);
             note.position.copy(v);
             note.position.z += 0.1+(off||0);
             this.add(note);
